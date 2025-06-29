@@ -10,7 +10,14 @@ Currently only CSV files are supported for export.
 
 There is a mode to save the raw websocket messages in a JSON file, which can be useful for debugging.
 
-## TLS
+The script will generate a new CSV file for every update it receives from *CrossMgr*.
+
+The CSV files will be named based on the output path you provide. There are two options:
+
+- a single CSV file per category
+- a numbered CSV file per category, which will keep the last N files (default is 4, -1 to keep all files)
+
+## TLS WebSockets
 
 Both `ws://` and `wss://` URLs are supported. The `ws://` protocol is used for unencrypted connections, while `wss://` is used for encrypted connections (TLS/SSL).
 
@@ -19,12 +26,14 @@ If you are connecting directly to a CrossMgr instance you will need to connect u
 
 ```
 ws://localhost:8766
+ws://localhost
 ```
 
 If you are connecting to a CrossMgr instance that is behind a reverse proxy, you will need to connect using a wss url:
 
 ```
 ws://crossmgr.inthecloud.co:8766
+ws://crossmgr.inthecloud.co
 ```
 
 ## Usage:
