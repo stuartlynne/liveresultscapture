@@ -17,7 +17,7 @@ from bisect import bisect_right
 from websocket import WebSocketApp
 import traceback
 
-__version__ = '0.1.1'
+__version__ = '0.1.3'
 
 # Global state
 state = { 'catDetails': [], 'data': {}, 'curRaceTime': None }
@@ -112,17 +112,21 @@ def build_csv():
             status = d.get('status', '')
             vals = []
             # Cat name
-            vals.append(f'"{cat_name.replace("\"","\"\"")}"')
+            safe = cat_name.replace('"','""')
+            vals.append(f'"{safe}"')
             idx_str = f'"({str(idx)})"' if interpLast else f'"{str(idx)}"'
+
             vals.append(f"{idx_str:^6s}")
             vals.append(f"{str(bib):^6s}")
+
             fullname = f"{d.get('FirstName','')} {d.get('LastName','')}".strip()
-            fullname = f'"{fullname.replace("\"","\"\"")}"'
-            vals.append(f"{fullname:<20s}")
+            safe = fullname.replace('"','""')
+            vals.append(f'"{safe:<20s}"')
 
             team = f"{d.get('Team','')}".strip()
-            team = f'"{team.replace("\"","\"\"")}"'
-            vals.append(f"{team[:20]:<20s}")
+            safe = team.replace('"','""')
+            vals.append(f'"{safe[:20]:<20s}"')
+
             def fmt(num):
                 """Format a number to one decimal, blank if invalid"""
                 try:
@@ -143,7 +147,8 @@ def build_csv():
             vals.append(f'{processed_gap:>4s}')
 
             # speed
-            raw_speed = f'"{d.get('speed','')}"'
+            raw_speed = d.get('speed','')
+            raw_speed = f'"{raw_speed}"'
             processed_speed = re.sub(r'(\d+)\.\d+', r'\1', raw_speed)
             vals.append(f'{processed_speed:>8s}')
 
@@ -211,7 +216,7 @@ def on_message(ws, raw):
             def gen_out_name(base, cat_name, count, ext):
                 """Generate output filename based on base name, category, and count"""
                 number = f"-{count:05d}" if args.save_numbered else ''
-                return f"{base}-{cat_name}{number}{ext}".replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '')
+                return f"{base}-{cat_name}{number}{ext}.csv".replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '')
 
             for cat_name, csv in results.items():
                 out_name = gen_out_name(base, cat_name, count, ext)
