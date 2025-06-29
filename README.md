@@ -130,3 +130,51 @@ Category,Pos,   Bib,                Name,                Team,   Time, Gap,    S
 "All", "30" , 199  ,"Jesse STOUT"       ,"Metec Continental C, "0:55",   0,"32 km/h", "0:55"  ,"DNF"
 "All", "31" , 192  ,"Antonio OLSEN"     ,"Alpha Baltic-Unitym, "0:00",   0,      "","DQ"
 ```
+
+
+## Windows Defender and EXE
+
+Pre-compiled versions of the script (using nuitka) are available.
+
+This may be the preferred method of using this if you do not want to install Python.
+
+N.b. Windows Defender sometimes flags these. There are two mitigations available:
+
+- Pause Real-time protection
+- Submit to Microsoft
+
+### Pause Protection
+
+1. Open the *Virus & threat protection settings* in Windows.
+2. Click on *Manage settings*.
+3. Click on the radio-button to disable *Real-Time protection*.
+
+N.b. Pausing protection appears to timeout after about an hour or two.
+
+
+### Submit file to Microsoft
+
+Use this URL to submit the EXE to Microsoft.
+
+[Microsoft Submit File](https://www.microsoft.com/en-us/wdsi/filesubmission)
+
+Generally Microsoft will review in less than 24 hours and if they agree that the EXE
+is not a threat will update their definitions.
+
+### Typical Microsoft Response
+```
+At this time, the submitted files do not meet our criteria for malware or potentially unwanted applications. The detection has been removed. Please follow the steps below to clear cached detections and obtain the latest malware definitions.
+
+1. Open command prompt as administrator and change directory to c:\Program Files\Windows Defender
+2. Run “MpCmdRun.exe -removedefinitions -dynamicsignatures”
+3. Run "MpCmdRun.exe -SignatureUpdate"
+
+Alternatively, the latest definition is available for download here: https://docs.microsoft.com/microsoft-365/security/defender-endpoint/manage-updates-baselines-microsoft-defender-antivirus
+
+Thank you for contacting Microsoft.
+
+```
+
+*N.b. After running the suggested commands it appears to take about a day for your local system
+to stop flagging the EXE.*
+
