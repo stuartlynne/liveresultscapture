@@ -12,16 +12,15 @@ VER=$(shell  sed -nE "s/^__version__\s*=\s*['\"]([^'\"]+)['\"].*/\1/p" app/$(APP
 EXES = $(APPNAME).exe 
 ZIPFILE = ${APPNAME}-${VER}.zip
 
-all: ${EXES} ${ZIPFILE}
+all: ${EXES} 
 
-%.exe : %.py
+%.exe : app/%.py
 	time -p python -m nuitka \
 		--onefile \
-		--windows-console-mode=disable \
-		--enable-plugin=tk-inter \
-		--windows-icon-from-ico=./images/solarapp.png \
+		--windows-icon-from-ico=./images/light.png \
 		$<
-	belcarra-signtool $*.exe
+	belcarra-signtool $@
+	zip ${ZIPFILE} $@
 
 test:
 	@echo APPNAME: ${APPNAME}
@@ -29,11 +28,11 @@ test:
 	@echo EXES: ${EXES}
 	@echo ZIPFILE: ${ZIPFILE}
 
-$(ZIPNAME): ${EXES}
-	zip $@ $^
+#$(ZIPNAME): ${EXES}
+#	zip $@ $^
 
 clean:
-	-rm -rf *build *dist
+	-rm -rf *build *dist *.exe *.zip
 
 really-clean: clean
 	-rm -rf *.exe
