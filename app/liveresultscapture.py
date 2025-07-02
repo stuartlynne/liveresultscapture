@@ -219,6 +219,10 @@ def on_message(ws, raw):
                 return f"{base}-{cat_name}{number}{ext}.csv".replace(' ', '_').replace('/', '-').replace('(', '').replace(')', '')
 
             for cat_name, csv in results.items():
+                if args.only_all and 'All' not in cat_name:
+                    continue
+                if args.only_others and 'All' in cat_name:
+                    continue
                 out_name = gen_out_name(base, cat_name, count, ext)
                 with open(out_name, 'w', encoding='utf-8') as f:
                     f.write(csv + '\n')
@@ -265,6 +269,10 @@ def main():
     parser.add_argument('output', help='Base output CSV path')
     parser.add_argument('--save_json', action='store_true', help='Save messages in json file.')
     parser.add_argument('--save_numbered', nargs='?', const=4, type=int, help='Save numbered CSV files, keeping the last N files. Default is 4. -1 to keep all files')    
+
+    parser.add_argument("--only_all", action='store_true', help="only include rows where Criteria == 'All'")
+    parser.add_argument("--only_others", action='store_true', help="exclude rows where Criteria == 'All'")
+
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('--verbose', action='store_true', help='Verbose messages.')
     parser.add_argument('--quiet', action='store_true', help='No messages.')
