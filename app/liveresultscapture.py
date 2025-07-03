@@ -158,11 +158,15 @@ def build_csv():
             processed_speed = re.sub(r'(\d+)\.\d+', r'\1', raw_speed)
             vals.append(f'{processed_speed:>8s}')
 
-            j = 0
-            for i, lap_time in enumerate(lap_times[1:completed]):
-                val = f'({fmt(lap_time)})' if interp[i+1] else f'{fmt(lap_time)}'
-                vals_append(val, "^9s")
-                j = i
+            if not args.no_laptimes:
+                # Lap times
+                for i in range(1, max_laps + 1):
+                    if i < completed:
+                        lap_time = lap_times[i]
+                        val = f'({fmt(lap_time)})' if interp[i] else f'{fmt(lap_time)}'
+                    else:
+                        val = ''
+                    vals_append(val, "^9s")
             if status != 'Finisher':
                 vals_append(status)
             if completed > max_laps:
@@ -172,7 +176,8 @@ def build_csv():
         # Header row
         headers = ['Category','Pos','Bib','Name','Team','Time','Gap','Speed']
         step = 1
-        headers += [f"Lap{i}" for i in range(1, max_laps, step)]
+        if not args.no_laptimes:
+            headers += [f"Lap{i}" for i in range(1, max_laps, step)]
         header_row = args.csv_delimiter.join(headers)
         categories[cat_name] = [header_row] + rows
 
@@ -281,6 +286,7 @@ def main():
     parser.add_argument("--only_others", action='store_true', help="exclude rows where Criteria == 'All'")
     parser.add_argument("--csv_delimiter", action='store', default=',', help="CSV delimiter to use, default is ','")
     parser.add_argument("--padding", action='store_true', help="Pad CSV columns to fixed width, default is no padding")
+    parser.add_argument("--no_laptimes", action='store_true', help="Do not include lap times in CSV output, only total time and gaps")
 
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('--verbose', action='store_true', help='Verbose messages.')
