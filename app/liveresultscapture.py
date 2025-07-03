@@ -17,7 +17,7 @@ from bisect import bisect_right
 from websocket import WebSocketApp
 import traceback
 
-__version__ = '0.1.3'
+__version__ = '0.1.5'
 
 # Global state
 state = { 'catDetails': [], 'data': {}, 'curRaceTime': None }
@@ -111,21 +111,27 @@ def build_csv():
 
             status = d.get('status', '')
             vals = []
+            def vals_append(val, fmt=None):
+                if args.padding and fmt is not None:
+                    val = f'{str(val):{fmt}}'
+                vals.append(f'"{val}"' if type(val) is str else f'{val}') 
+                pass
             # Cat name
             safe = cat_name.replace('"','""')
-            vals.append(f'"{safe}"')
-            idx_str = f'"({str(idx)})"' if interpLast else f'"{str(idx)}"'
+            vals_append(f'{safe}')
+            #idx_str = f'"({str(idx)})"' if interpLast else f'"{str(idx)}"'
+            idx_str = f'({str(idx)})' if interpLast else idx
 
-            vals.append(f"{idx_str:^6s}")
-            vals.append(f"{str(bib):^6s}")
+            vals_append(idx_str, "^6s")
+            vals_append(bib, "^6s")
 
             fullname = f"{d.get('FirstName','')} {d.get('LastName','')}".strip()
             safe = fullname.replace('"','""')
-            vals.append(f'"{safe:<20s}"')
+            vals_append(safe, "<20s")
 
             team = f"{d.get('Team','')}".strip()
             safe = team.replace('"','""')
-            vals.append(f'"{safe[:20]:<20s}"')
+            vals_append(safe,"<30s")
 
             def fmt(num):
                 """Format a number to one decimal, blank if invalid"""
@@ -137,14 +143,14 @@ def build_csv():
                     print(f"Error formatting number: {num} e: {e}")
                     return ''
             # total time
-            total = f'"{fmt(rt[-1] if rt else 0)}"'
-            vals.append(f'{total:>7s}') if total is not None else vals.append('""')
+            total = f'{fmt(rt[-1] if rt else 0)}'
+            vals_append(total)
 
             # gap
             gv = cat.get('gapValue', [])
             gap = gv[idx-1]
             processed_gap = re.sub(r'(\d+\.\d)\d+', r'\1', str(gap))
-            vals.append(f'{processed_gap:>4s}')
+            vals_append(processed_gap, ">4s")
 
             # speed
             raw_speed = d.get('speed','')
@@ -154,20 +160,20 @@ def build_csv():
 
             j = 0
             for i, lap_time in enumerate(lap_times[1:completed]):
-                val = f'"({fmt(lap_time)})"' if interp[i+1] else f'"{fmt(lap_time)}"'
-                vals.append(f'{val:^9s}')
+                val = f'({fmt(lap_time)})' if interp[i+1] else f'{fmt(lap_time)}'
+                vals_append(val, "^9s")
                 j = i
             if status != 'Finisher':
-                vals.append(f'"{status}"')
+                vals_append(status)
             if completed > max_laps:
                 max_laps = completed
-            rows.append(','.join(vals))
+            rows.append(args.csv_delimiter.join(vals))
 
         # Header row
         headers = ['Category','Pos','Bib','Name','Team','Time','Gap','Speed']
         step = 1
         headers += [f"Lap{i}" for i in range(1, max_laps, step)]
-        header_row = ','.join(headers)
+        header_row = args.csv_delimiter.join(headers)
         categories[cat_name] = [header_row] + rows
 
     results = {}
@@ -229,6 +235,7 @@ def on_message(ws, raw):
                 if args.verbose:
                     print(f"Wrote CSV #{count}: {out_name}")
 
+                # remove old versions if save_numbered is set
                 if args.save_numbered and args.save_numbered > 0 and count > args.save_numbered:
                     for i in range(count-args.save_numbered, 0, -1):
                         out_name = gen_out_name(base, cat_name, i, ext)
@@ -272,6 +279,8 @@ def main():
 
     parser.add_argument("--only_all", action='store_true', help="only include rows where Criteria == 'All'")
     parser.add_argument("--only_others", action='store_true', help="exclude rows where Criteria == 'All'")
+    parser.add_argument("--csv_delimiter", action='store', default=',', help="CSV delimiter to use, default is ','")
+    parser.add_argument("--padding", action='store_true', help="Pad CSV columns to fixed width, default is no padding")
 
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('--verbose', action='store_true', help='Verbose messages.')
