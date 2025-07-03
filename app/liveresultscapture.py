@@ -125,7 +125,7 @@ def build_csv():
             vals_append(idx_str, "^6s")
             vals_append(bib, "^6s")
 
-            fullname = f"{d.get('FirstName','')} {d.get('LastName','')}".strip()
+            fullname = f"{d.get('LastName','')},{d.get('FirstName','')}".strip()
             safe = fullname.replace('"','""')
             vals_append(safe, "<20s")
 
