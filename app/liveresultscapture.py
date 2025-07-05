@@ -103,6 +103,7 @@ def build_csv():
                 completed = len(rt)
 
             lap_times = [ rt[0] if i == 0 else rt[i] - rt[i-1] for i in range(0, completed) ]
+            #print(f"total_time: {total_time}, completed: {completed}, laps: {len(lap_times)}") 
 
             if len(interp) > 0:
                 interpLast = interp[completed-1] if len(interp) > completed-1 else False
@@ -112,17 +113,22 @@ def build_csv():
             status = d.get('status', '')
             vals = []
             def vals_append(val, fmt=None):
-                if args.padding and fmt is not None:
-                    val = f'{str(val):{fmt}}'
-                vals.append(f'"{val}"' if type(val) is str else f'{val}') 
+                try:
+                    if args.padding and fmt is not None:
+                        val = f'{str(val):{fmt}}'
+                    vals.append(f'"{val}"' if type(val) is str else f'{val}') 
+                except Exception as e:
+                    print(f"Error formatting value: {val} e: {e}")
+                    print(traceback.format_exc())
+                    exit(1)
                 pass
             # Cat name
-            safe = cat_name.replace('"','""')
-            vals_append(f'{safe}')
+            #safe = cat_name.replace('"','""')
+            #vals_append(f'{safe}')
             #idx_str = f'"({str(idx)})"' if interpLast else f'"{str(idx)}"'
             idx_str = f'({str(idx)})' if interpLast else idx
 
-            vals_append(idx_str, "^6s")
+            vals_append(status, "^6s") if status != 'Finisher' else vals_append(idx_str, "^6s")
             vals_append(bib, "^6s")
 
             fullname = f"{d.get('LastName','')},{d.get('FirstName','')}".strip()
@@ -131,19 +137,39 @@ def build_csv():
 
             team = f"{d.get('Team','')}".strip()
             safe = team.replace('"','""')
-            vals_append(safe,"<30s")
+            vals_append(safe[:20],"<20s")
 
-            def fmt(num):
+            def fmt(num, msg):
                 """Format a number to one decimal, blank if invalid"""
                 try:
-                    m = num/60 if num > 60 else 0
+                    m = num//60 if num > 60 else 0
                     s = num % 60
                     return f"{m:.0f}:{s:02.0f}"
                 except Exception as e:
-                    print(f"Error formatting number: {num} e: {e}")
-                    return ''
+                    print(f"Error formatting number: {num} e: {e} {msg}")
+                    print(traceback.format_exc())
             # total time
-            total = f'{fmt(rt[-1] if rt else 0)}'
+            #total_time = sum(lap_times[1:completed]) if completed > 0 else 0
+            total_time = 0
+            reduced_lap_times = lap_times[1:completed] if completed > 0 else []
+            for t in reduced_lap_times:
+                total_time += t
+            total_time = sum(reduced_lap_times) if reduced_lap_times else 0
+            def timesfmt(times):
+                """Format time for CSV output"""
+                return ','.join(f"{t:.1f}" for t in times)
+            if idx == 1:
+                print(f"[{bib}] completed: {completed} {fmt(total_time, 'AAA')} lap_times: {len(lap_times)}")
+                print(f"[{bib}] [{timesfmt(reduced_lap_times)}]")
+                print(f"[{bib}] [{timesfmt(lap_times)}]")
+            #if bib == 31:
+            #    print(f"{bib} status {status} completed: {completed} total_time: {total_time} lap_times: {lap_times[1:completed]}")
+            
+            if idx == 1:
+                total = total_time
+                total = fmt(total, "AAA")
+                print(f"total: {total} ")
+
             vals_append(total)
 
             # gap
@@ -156,28 +182,35 @@ def build_csv():
             raw_speed = d.get('speed','')
             raw_speed = f'"{raw_speed}"'
             processed_speed = re.sub(r'(\d+)\.\d+', r'\1', raw_speed)
-            vals.append(f'{processed_speed:>8s}')
+            vals_append(processed_speed, ">8s")
 
+            if idx < 4 and 'All' in cat_name:
+                times = ','.join([f'{fmt(t, "AAA")}' for t in lap_times[1:]])
+                print(f"[{bib}] {times} ")
+            if completed > max_laps:
+                max_laps = completed
             if not args.no_laptimes:
                 # Lap times
                 for i in range(1, max_laps + 1):
                     if i < completed:
                         lap_time = lap_times[i]
-                        val = f'({fmt(lap_time)})' if interp[i] else f'{fmt(lap_time)}'
+                        val = f'({fmt(lap_time, "AAA")})' if interp[i] else f'{fmt(lap_time, "BBB")}'
                     else:
                         val = ''
                     vals_append(val, "^9s")
-            if status != 'Finisher':
-                vals_append(status)
-            if completed > max_laps:
-                max_laps = completed
-            rows.append(args.csv_delimiter.join(vals))
+            #if status != 'Finisher':
+            #    vals_append(status)
+            rows.append(args.csv_delimiter.join( vals))
 
         # Header row
-        headers = ['Category','Pos','Bib','Name','Team','Time','Gap','Speed']
+        #headers = ['Category','Pos','Bib','Name','Team','Time','Gap','Speed']
+        safe = cat_name.replace('"','""')
+        headers = [f'"{safe}"','Bib','Name','Team','Time','Gap','Speed']
         step = 1
         if not args.no_laptimes:
+            #headers += [f"Lap{i}" for i in range(max_laps, 1, -step)] if args.reverse_laps else [f"Lap{i}" for i in range(1, max_laps, step)]
             headers += [f"Lap{i}" for i in range(1, max_laps, step)]
+
         header_row = args.csv_delimiter.join(headers)
         categories[cat_name] = [header_row] + rows
 
@@ -277,16 +310,18 @@ def main():
             ),
             formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument('url', help='WebSocket URL wss://example.com:8766 or ws://localhost[:8766]')
-    parser.add_argument('output', help='Base output CSV path')
-    parser.add_argument('--save_json', action='store_true', help='Save messages in json file.')
-    parser.add_argument('--save_numbered', nargs='?', const=4, type=int, help='Save numbered CSV files, keeping the last N files. Default is 4. -1 to keep all files')    
+    parser.add_argument("url", help='WebSocket URL wss://example.com:8766 or ws://localhost[:8766]')
+    parser.add_argument("output", help='Base output CSV path')
+    parser.add_argument("--save_json", "--save-json", action='store_true', help='Save messages in json file.')
+    parser.add_argument("--save_numbered", "--save-numbered", nargs='?', const=4, type=int, 
+                        help='Save numbered CSV files, keeping the last N files. Default is 4. -1 to keep all files')    
 
-    parser.add_argument("--only_all", action='store_true', help="only include rows where Criteria == 'All'")
-    parser.add_argument("--only_others", action='store_true', help="exclude rows where Criteria == 'All'")
-    parser.add_argument("--csv_delimiter", action='store', default=',', help="CSV delimiter to use, default is ','")
+    parser.add_argument("--only_all", "--only-all", action='store_true', help="only include rows where Criteria == 'All'")
+    parser.add_argument("--only_others", "--only-others", action='store_true', help="exclude rows where Criteria == 'All'")
+    parser.add_argument("--csv_delimiter", "--csv-delimiter", action='store', default=',', help="CSV delimiter to use, default is ','")
     parser.add_argument("--padding", action='store_true', help="Pad CSV columns to fixed width, default is no padding")
-    parser.add_argument("--no_laptimes", action='store_true', help="Do not include lap times in CSV output, only total time and gaps")
+    parser.add_argument("--no_laptimes", "--no-laptimes", action='store_true', help="Do not include lap times in CSV output, only total time and gaps")
+    #parser.add_argument('--reverse_laps', action='store_true', help='Reverse lap order in CSV output, default is forward order')
 
     parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('--verbose', action='store_true', help='Verbose messages.')
